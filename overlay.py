@@ -7,14 +7,23 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout, QLineEdit,
     QLabel, QHBoxLayout, QTabWidget, QSpinBox,
     QDialog, QDialogButtonBox, QFormLayout, QComboBox, QMessageBox, QCompleter,
-    QRadioButton, QButtonGroup
+    QRadioButton, QButtonGroup, QSizePolicy  # Already correctly imported
 )
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEngineSettings
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import Qt, QTimer, QUrl, QSize
 from PySide6.QtGui import QFont
 
 CONFIG_FILE = "overlay_config.json"
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 class OverlayWindow(QWidget):
     def __init__(self):
@@ -30,7 +39,8 @@ class OverlayWindow(QWidget):
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
         
-        local_file = os.path.abspath("overlay.html")
+        # Use the resource path function
+        local_file = get_resource_path("overlay.html")
         self.browser.load(QUrl.fromLocalFile(local_file))
 
         layout = QVBoxLayout()
@@ -83,8 +93,13 @@ class OverlayWindow(QWidget):
         script = f"updateFightCards({json.dumps(left_robot_data)}, {json.dumps(right_robot_data)}, {json.dumps(tournament_data)});"
         self.browser.page().runJavaScript(script)
     
-    def update_judges(self, left_robot_data, right_robot_data):
-        script = f"updateJudges({json.dumps(left_robot_data)}, {json.dumps(right_robot_data)});"
+    def update_judges(self, left_robot_data, right_robot_data, tournament_data=None):
+        if tournament_data is None:
+            tournament_data = {
+                "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+                "weight_class": ""  # Empty string if no weight class data
+            }
+        script = f"updateJudges({json.dumps(left_robot_data)}, {json.dumps(right_robot_data)}, {json.dumps(tournament_data)});"
         self.browser.page().runJavaScript(script)
     
     def update_rsl(self, tournament_data):
@@ -100,7 +115,15 @@ class OverlayWindow(QWidget):
         self.browser.page().runJavaScript(script)
     
     def update_match_queue(self, tournament_data):
-        script = f"updateMatchQueue({json.dumps(tournament_data)});"
+        # Add error handling and check if function exists
+        script = f"""
+        if (typeof updateMatchQueue === 'function') {{
+            updateMatchQueue({json.dumps(tournament_data)});
+            console.log('Match queue updated successfully');
+        }} else {{
+            console.error('updateMatchQueue function not found - JavaScript may not be fully loaded');
+        }}
+        """
         self.browser.page().runJavaScript(script)
     
     def refresh_match_queue(self):
@@ -154,6 +177,12 @@ class ControlWindow(QWidget):
         self.current_tournament_name = None
         self.last_left_competitor = None
         self.last_right_competitor = None
+        
+        # Base size for scaling - INCREASED HEIGHT FOR MORE ROOM
+        self.base_width = 400
+        self.base_height = 700  # Increased from 600 to 700 for more room
+        self.current_scale = 1.0
+        self.ui_initialized = False  # Flag to track UI initialization
 
         self.load_config()
 
@@ -163,39 +192,49 @@ class ControlWindow(QWidget):
         self.overlay_window.update_background_color(self.default_bg_color)
         self.overlay_window.update_name_colors(self.left_color, self.right_color)
 
+        # Create tabs - this creates all UI elements including fullscreen_button
         self.tabs = QTabWidget()
         self.tabs.addTab(self.create_timer_tab(), "Main")
         self.tabs.addTab(self.create_settings_tab(), "Settings")
 
+        # Main layout
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
 
+        # Now create overlay control buttons (after create_timer_tab so fullscreen_button exists)
         self.reopen_button = QPushButton("Open Overlay")
         self.reopen_button.clicked.connect(self.reopen_overlay)
         
-        # Style for overlay control buttons (double height, 1.5x text)
         overlay_button_font = QFont()
         overlay_button_font.setPointSize(int(overlay_button_font.pointSize() * 1.5))
         
         self.reopen_button.setFont(overlay_button_font)
-        self.reopen_button.setMinimumHeight(60)  # Double height
+        self.reopen_button.setMinimumHeight(60)
         
-        # Create horizontal layout for overlay control buttons
+        # fullscreen_button already exists from create_timer_tab()
+        self.fullscreen_button.setFont(overlay_button_font)
+        self.fullscreen_button.setMinimumHeight(60)
+        
         overlay_controls_layout = QHBoxLayout()
         overlay_controls_layout.addWidget(self.reopen_button)
         overlay_controls_layout.addWidget(self.fullscreen_button)
         layout.addLayout(overlay_controls_layout)
 
         self.setLayout(layout)
-        self.resize(400, 420)
+        
+        # Mark UI as initialized BEFORE resize
+        self.ui_initialized = True
+        
+        self.resize(self.base_width, self.base_height)
+        self.setMinimumSize(300, 525)  # Adjusted: 300 * (700/400) = 525
         self.show()
 
+        # Timers
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_timer_countdown)
         self.remaining_time = 0
         self.is_paused = False
 
-        # Auto-update timer for matches (1 second interval)
         self.auto_update_timer = QTimer(self)
         self.auto_update_timer.timeout.connect(self.auto_update_matches)
         self.auto_update_timer.setSingleShot(False)
@@ -257,9 +296,6 @@ class ControlWindow(QWidget):
         self.right_competitor_dropdown.setPlaceholderText("Type to filter right competitor...")
         self.right_competitor_dropdown.addItem("-- Select Right Competitor --")
 
-        # The built-in QComboBox filtering handles most functionality automatically
-        
-        # Connect competitor selection changes to save config
         self.left_competitor_dropdown.currentTextChanged.connect(self.on_competitor_changed)
         self.right_competitor_dropdown.currentTextChanged.connect(self.on_competitor_changed)
         
@@ -271,33 +307,34 @@ class ControlWindow(QWidget):
         update_button_font.setPointSize(int(update_button_font.pointSize() * 1.5))
         self.name_button.setFont(update_button_font)
         self.name_button.setMinimumHeight(60)  # Double height
-        # Make button width fit text content
-        self.name_button.adjustSize()
-        self.name_button.setMaximumWidth(self.name_button.sizeHint().width())
+        # Make button width tight to text content
+        self.name_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        self.name_button.adjustSize()  # Adjust to fit text tightly
 
+        # Timer control buttons - reduced by 20% (60 * 0.8 = 48)
         self.start_timer_button = QPushButton("▶")
         self.start_timer_button.clicked.connect(self.start_timer)
-        self.start_timer_button.setFixedSize(60, 60)  # 1.5x larger (40 * 1.5 = 60)
+        self.start_timer_button.setFixedSize(48, 48)  # Reduced from 60x60
         self.start_timer_button.setToolTip("Start Timer")
 
-        self.pause_timer_button = QPushButton("⏸")  # Proper pause symbol
+        self.pause_timer_button = QPushButton("⏸")
         self.pause_timer_button.clicked.connect(self.pause_timer)
-        self.pause_timer_button.setFixedSize(60, 60)  # 1.5x larger
+        self.pause_timer_button.setFixedSize(48, 48)  # Reduced from 60x60
         self.pause_timer_button.setToolTip("Pause Timer")
 
         self.edit_timer_button = QPushButton("Set\nCustom")
         self.edit_timer_button.clicked.connect(self.set_timer_value)
-        self.edit_timer_button.setFixedSize(80, 60)  # Wider to accommodate text, same height
+        self.edit_timer_button.setFixedSize(64, 48)  # Reduced from 80x60
 
-        self.reset_timer_button = QPushButton("⏹")  # Proper stop/reset symbol
+        self.reset_timer_button = QPushButton("⏹")
         self.reset_timer_button.clicked.connect(self.reset_timer)
-        self.reset_timer_button.setFixedSize(60, 60)  # 1.5x larger
+        self.reset_timer_button.setFixedSize(48, 48)  # Reduced from 60x60
         self.reset_timer_button.setToolTip("Reset Timer")
         
-        # Style timer control buttons with larger icons and no blue
+        # Style timer control buttons with proportionally smaller icons
         timer_button_style = """
         QPushButton {
-            font-size: 28px;
+            font-size: 22px;
             color: black;
             background-color: #f0f0f0;
             border: 2px solid #888;
@@ -320,7 +357,7 @@ class ControlWindow(QWidget):
         # Style the edit timer button with smaller font for two-line text
         edit_timer_style = """
         QPushButton {
-            font-size: 14px;
+            font-size: 11px;
             color: black;
             background-color: #f0f0f0;
             border: 2px solid #888;
@@ -337,14 +374,9 @@ class ControlWindow(QWidget):
         """
         self.edit_timer_button.setStyleSheet(edit_timer_style)
 
-        # Style for overlay control buttons (double height, 1.5x text)
-        overlay_button_font = QFont()
-        overlay_button_font.setPointSize(int(overlay_button_font.pointSize() * 1.5))
-
+        # Create fullscreen button HERE (will be used in main layout)
         self.fullscreen_button = QPushButton("Fullscreen")
         self.fullscreen_button.clicked.connect(self.overlay_window.toggle_fullscreen)
-        self.fullscreen_button.setFont(overlay_button_font)
-        self.fullscreen_button.setMinimumHeight(60)  # Double height
 
         # Scene selection buttons
         self.match_scene_button = QPushButton("Match")
@@ -378,14 +410,14 @@ class ControlWindow(QWidget):
         scenes_label.setFont(section_font)
         layout.addWidget(scenes_label)
         
-        # Set double height for all scene buttons
-        button_height = 60
+        # Set reduced height for all scene buttons to prevent overlap
+        button_height = 40  # Reduced from 60 to 40
         
         # Create larger font for scene buttons (1.8x default size)
         button_font = QFont()
         button_font.setPointSize(int(button_font.pointSize() * 1.8))
         
-        # Apply styling to scene buttons
+        # Apply styling to scene buttons - make them tight to text
         scene_buttons = [
             self.match_scene_button, self.fight_cards_button, self.judges_button, 
             self.rsl_button, self.winner_red_button, self.winner_blue_button, self.match_queue_button
@@ -394,7 +426,9 @@ class ControlWindow(QWidget):
         for button in scene_buttons:
             button.setMinimumHeight(button_height)
             button.setFont(button_font)
-        
+            button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)  # Tight to text
+            button.adjustSize()  # Adjust to fit text tightly
+
         # First row: Match and RSL
         first_row_layout = QHBoxLayout()
         first_row_layout.addWidget(self.match_scene_button)
@@ -449,23 +483,27 @@ class ControlWindow(QWidget):
         mode_layout.addWidget(self.auto_radio)
         mode_layout.addStretch()
         layout.addLayout(mode_layout)
+        layout.addSpacing(8)  # Add spacing after mode selection
         
-        # Create font for dropdown text (2x size)
+        # Create font for dropdown text (1.4x size instead of 2x)
         dropdown_font = QFont()
-        dropdown_font.setPointSize(int(dropdown_font.pointSize() * 2))
+        dropdown_font.setPointSize(int(dropdown_font.pointSize() * 1.4))  # Reduced from 2.0 to 1.4
         
         # Auto mode display (initially hidden)
         self.auto_match_dropdown = QComboBox()
         self.auto_match_dropdown.addItem("No matches available")
         self.auto_match_dropdown.currentTextChanged.connect(self.on_match_selection_changed)
-        self.auto_match_dropdown.setFont(dropdown_font)  # Apply 2x font size
+        self.auto_match_dropdown.setFont(dropdown_font)
+        self.auto_match_dropdown.setMinimumHeight(50)  # Reduced from 60 to 50
         self.auto_match_dropdown.setVisible(False)
         layout.addWidget(self.auto_match_dropdown)
         
         self.refresh_matches_button = QPushButton("Refresh Matches")
         self.refresh_matches_button.clicked.connect(self.load_and_auto_select_match)
+        self.refresh_matches_button.setMinimumHeight(35)  # Set consistent height
         self.refresh_matches_button.setVisible(False)
         layout.addWidget(self.refresh_matches_button)
+        layout.addSpacing(8)  # Add spacing after auto mode controls
         
         # Manual competitor selection controls
         competitor_layout = QHBoxLayout()
@@ -479,6 +517,7 @@ class ControlWindow(QWidget):
         self.left_competitor_label.setFont(competitor_label_font)
         left_layout.addWidget(self.left_competitor_label)
         self.left_competitor_dropdown.setFont(dropdown_font)
+        self.left_competitor_dropdown.setMinimumHeight(50)  # Reduced from 60 to 50
         # Style the completer popup for typing/filtering
         self.left_competitor_dropdown.completer().popup().setFont(dropdown_font)
         # Style the line edit (text input field) within the dropdown
@@ -490,6 +529,7 @@ class ControlWindow(QWidget):
         self.right_competitor_label.setFont(competitor_label_font)
         right_layout.addWidget(self.right_competitor_label)
         self.right_competitor_dropdown.setFont(dropdown_font)
+        self.right_competitor_dropdown.setMinimumHeight(50)  # Reduced from 60 to 50
         # Style the completer popup for typing/filtering
         self.right_competitor_dropdown.completer().popup().setFont(dropdown_font)
         # Style the line edit (text input field) within the dropdown
@@ -500,6 +540,7 @@ class ControlWindow(QWidget):
         competitor_layout.addLayout(right_layout)
         
         layout.addLayout(competitor_layout)
+        layout.addSpacing(8)  # Add spacing after competitor selection
         
         # Center the update button horizontally
         update_button_layout = QHBoxLayout()
@@ -507,7 +548,7 @@ class ControlWindow(QWidget):
         update_button_layout.addWidget(self.name_button)
         update_button_layout.addStretch()
         layout.addLayout(update_button_layout)
-        layout.addSpacing(15)
+        layout.addSpacing(12)  # Reduced from 15 to 12
         
         # Timer Controls Section
         timer_label = QLabel("Timer Controls")
@@ -800,10 +841,9 @@ class ControlWindow(QWidget):
                 
             print(f"Loading matches for tournament ID: {self.current_tournament_id}")
             
-            # Get pending matches for current tournament
+            # Get ALL matches for current tournament first, then filter
             params = {
-                "tournament_id": self.current_tournament_id,
-                "status": "pending"
+                "tournament_id": self.current_tournament_id
             }
             
             url = "https://rslcheckin.replit.app/api/matches"
@@ -816,11 +856,26 @@ class ControlWindow(QWidget):
             print(f"API response: {data}")
             
             if data.get("success") and data.get("matches"):
-                self.matches_data = data["matches"]
-                print(f"Loaded {len(self.matches_data)} pending matches for tournament {self.current_tournament_id}")
+                # Store ALL matches first
+                all_matches = data["matches"]
+                print(f"Received {len(all_matches)} total matches")
+                
+                # Debug: Show status of first few matches
+                for i, match in enumerate(all_matches[:3]):
+                    print(f"Match {i}: ID={match.get('id')}, Status={match.get('status')}, Robot1={match.get('robot_1_id')}, Robot2={match.get('robot_2_id')}")
+                
+                # Filter for pending matches
+                self.matches_data = [match for match in all_matches if match.get('status') == 'pending']
+                print(f"Filtered to {len(self.matches_data)} pending matches")
+                
+                if len(self.matches_data) == 0:
+                    print("No pending matches found! Available statuses:")
+                    statuses = set(match.get('status') for match in all_matches)
+                    print(f"Statuses found: {statuses}")
+                    
             else:
                 self.matches_data = []
-                print(f"No pending matches found. Response success: {data.get('success')}, matches key exists: {'matches' in data}")
+                print(f"No matches found. Response success: {data.get('success')}, matches key exists: {'matches' in data}")
                 
         except Exception as e:
             print(f"Error loading matches data: {e}")
@@ -940,7 +995,7 @@ class ControlWindow(QWidget):
 
     def update_match_dropdown(self, matches):
         """Update the match dropdown with available matches"""
-        # Temporarily disconnect signal to avoid triggering selection change
+        # Temporarily disconnect signal to avoid triggering selection
         self.auto_match_dropdown.currentTextChanged.disconnect()
         
         # Clear existing items
@@ -1204,12 +1259,50 @@ class ControlWindow(QWidget):
         self.overlay_window.update_names(left, right)
         self.overlay_window.update_match_scene(left_robot_data, right_robot_data)
         
-        # Also update fight cards scene
-        self.overlay_window.update_fight_cards(left_robot_data, right_robot_data)
+        # Also update fight cards scene with proper tournament and weight class data
+        if left_robot_data and right_robot_data:
+            # Determine weight class - only show if both robots have the same weight class
+            weight_class = None
+            if (left_robot_data.get('weight_class') and right_robot_data.get('weight_class') and
+                left_robot_data.get('weight_class') == right_robot_data.get('weight_class')):
+                weight_class = left_robot_data.get('weight_class')
+            
+            # Get tournament data from currently selected tournament
+            tournament_data = {
+                "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+                "weight_class": weight_class or ""  # Empty string if no weight class or mismatch
+            }
+            self.overlay_window.update_fight_cards(left_robot_data, right_robot_data, tournament_data)
+        else:
+            # Fallback for when no robots are selected
+            tournament_data = {
+                "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+                "weight_class": ""
+            }
+            self.overlay_window.update_fight_cards(left_robot_data, right_robot_data, tournament_data)
         
-        # Also update judges scene
-        self.overlay_window.update_judges(left_robot_data, right_robot_data)
-        
+        # Also update judges scene with proper tournament and weight class data
+        if left_robot_data and right_robot_data:
+            # Determine weight class - only show if both robots have the same weight class
+            weight_class = None
+            if (left_robot_data.get('weight_class') and right_robot_data.get('weight_class') and
+                left_robot_data.get('weight_class') == right_robot_data.get('weight_class')):
+                weight_class = left_robot_data.get('weight_class')
+            
+            # Get tournament data from currently selected tournament
+            tournament_data = {
+                "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+                "weight_class": weight_class or ""  # Empty string if no weight class or mismatch
+            }
+            self.overlay_window.update_judges(left_robot_data, right_robot_data, tournament_data)
+        else:
+            # Fallback for when no robots are selected
+            tournament_data = {
+                "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+                "weight_class": ""
+            }
+            self.overlay_window.update_judges(left_robot_data, right_robot_data, tournament_data)
+
         # Update winner scenes
         if left_robot_data:
             self.overlay_window.update_winner_red(left_robot_data)
@@ -1302,14 +1395,28 @@ class ControlWindow(QWidget):
         left_robot_data = self.get_robot_data_by_name(left_name)
         right_robot_data = self.get_robot_data_by_name(right_name)
         
+        # Determine weight class - only show if both robots have the same weight class
+        weight_class = None
+        if (left_robot_data and right_robot_data and 
+            left_robot_data.get('weight_class') and right_robot_data.get('weight_class') and
+            left_robot_data.get('weight_class') == right_robot_data.get('weight_class')):
+            weight_class = left_robot_data.get('weight_class')
+        
+        # Get tournament data from currently selected tournament
+        tournament_data = {
+            "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+            "weight_class": weight_class or ""  # Empty string if no weight class or mismatch
+        }
+        
         print(f"Fight cards data - Left: {left_robot_data['bot_name']}, Image: {left_robot_data.get('image_url')}")
         print(f"Fight cards data - Right: {right_robot_data['bot_name']}, Image: {right_robot_data.get('image_url')}")
+        print(f"Tournament: {tournament_data['tournament_name']}, Weight Class: {tournament_data['weight_class']}")
         
         # Switch to fight cards scene first
         self.overlay_window.switch_scene("fight-cards")
         
         # Add a small delay to ensure scene is ready before updating data
-        QTimer.singleShot(150, lambda: self.overlay_window.update_fight_cards(left_robot_data, right_robot_data))
+        QTimer.singleShot(150, lambda: self.overlay_window.update_fight_cards(left_robot_data, right_robot_data, tournament_data))
     
     def show_judges_scene(self):
         """Switch to judges scene and update with current competitors"""
@@ -1320,14 +1427,28 @@ class ControlWindow(QWidget):
         left_robot_data = self.get_robot_data_by_name(left_name)
         right_robot_data = self.get_robot_data_by_name(right_name)
         
+        # Determine weight class - only show if both robots have the same weight class
+        weight_class = None
+        if (left_robot_data and right_robot_data and 
+            left_robot_data.get('weight_class') and right_robot_data.get('weight_class') and
+            left_robot_data.get('weight_class') == right_robot_data.get('weight_class')):
+            weight_class = left_robot_data.get('weight_class')
+        
+        # Get tournament data from currently selected tournament
+        tournament_data = {
+            "tournament_name": getattr(self, 'current_tournament_name', 'Tournament Name'),
+            "weight_class": weight_class or ""  # Empty string if no weight class or mismatch
+        }
+        
         print(f"Judges scene data - Left: {left_robot_data['bot_name']}, Image: {left_robot_data.get('image_url')}")
         print(f"Judges scene data - Right: {right_robot_data['bot_name']}, Image: {right_robot_data.get('image_url')}")
+        print(f"Tournament: {tournament_data['tournament_name']}, Weight Class: {tournament_data['weight_class']}")
         
         # Switch to judges scene first
         self.overlay_window.switch_scene("judges")
         
         # Add a small delay to ensure scene is ready before updating data
-        QTimer.singleShot(150, lambda: self.overlay_window.update_judges(left_robot_data, right_robot_data))
+        QTimer.singleShot(150, lambda: self.overlay_window.update_judges(left_robot_data, right_robot_data, tournament_data))
     
     def show_rsl_scene(self):
         """Switch to RSL scene and update with current tournament data"""
@@ -1392,31 +1513,41 @@ class ControlWindow(QWidget):
         # Switch to match queue scene first
         self.overlay_window.switch_scene("match-queue")
         
-        # Load fresh match data
+        # Load fresh match data - only pending matches
         self.load_matches_data()
         
         # Get selected tournament from dropdown
         selected_tournament = self.tournament_dropdown.currentText()
         
-        # Prepare match queue data with bot information
+        # Prepare match queue data with bot information - ONLY pending matches
         queue_matches = []
         if self.matches_data:
-            # Since load_matches_data already filters by current_tournament_id, use all matches
+            # Sort pending matches by ID
             sorted_matches = sorted(self.matches_data, key=lambda x: x.get('id', 0))[:10]
             
-            for match in sorted_matches:
+            print(f"Processing {len(sorted_matches)} matches for queue display:")
+            
+            for i, match in enumerate(sorted_matches):
                 # Get robot data for both competitors
-                red_robot_id = match.get('robot_1_id')  # Fixed: was robot1_id
-                blue_robot_id = match.get('robot_2_id')  # Fixed: was robot2_id
+                red_robot_id = match.get('robot_1_id')
+                blue_robot_id = match.get('robot_2_id')
+                
+                print(f"Match {i}: red_robot_id={red_robot_id}, blue_robot_id={blue_robot_id}")
                 
                 red_bot_data = None
                 blue_bot_data = None
                 
                 if red_robot_id and red_robot_id in self.robots_data:
                     red_bot_data = self.get_robot_data_for_overlay(red_robot_id)
+                    print(f"  Red bot: {red_bot_data.get('bot_name') if red_bot_data else 'None'}")
+                else:
+                    print(f"  Red robot ID {red_robot_id} not found in robots_data")
                 
                 if blue_robot_id and blue_robot_id in self.robots_data:
                     blue_bot_data = self.get_robot_data_for_overlay(blue_robot_id)
+                    print(f"  Blue bot: {blue_bot_data.get('bot_name') if blue_bot_data else 'None'}")
+                else:
+                    print(f"  Blue robot ID {blue_robot_id} not found in robots_data")
                 
                 # Get weight class from red robot (assuming both robots are in same weight class)
                 weight_class = "3lb"  # Default weight class
@@ -1427,7 +1558,8 @@ class ControlWindow(QWidget):
                     'match_number': match.get('id', 0),
                     'red_bot': red_bot_data,
                     'blue_bot': blue_bot_data,
-                    'weight_class': weight_class
+                    'weight_class': weight_class,
+                    'status': match.get('status', 'pending')  # Include status for debugging
                 })
         
         # Get tournament data and update the scene
@@ -1436,21 +1568,25 @@ class ControlWindow(QWidget):
             "matches": queue_matches
         }
         
-        # Add a small delay to ensure scene is ready before updating data
-        QTimer.singleShot(150, lambda: self.overlay_window.update_match_queue(tournament_data))
-    
+        print(f"Match queue showing {len(queue_matches)} pending matches")
+        print(f"Robots data size: {len(self.robots_data)}")
+        
+        # Add a longer delay to ensure JavaScript is fully loaded before updating data
+        QTimer.singleShot(500, lambda: self.overlay_window.update_match_queue(tournament_data))
+
     def refresh_match_queue_data(self):
         """Refresh match queue data for auto-update - simplified version"""
         # Only refresh if match queue scene is currently active
         try:
-            # Load fresh match data
+            # Load fresh match data - only pending matches
             self.load_matches_data()
             
-            # Prepare match queue data with bot information
+            # Prepare match queue data with bot information - ONLY pending matches
             queue_matches = []
             if self.matches_data:
-                # Since load_matches_data already filters by current_tournament_id, use all matches
-                sorted_matches = sorted(self.matches_data, key=lambda x: x.get('id', 0))[:10]
+                # Filter and sort pending matches only
+                pending_matches = [match for match in self.matches_data if match.get('status') == 'pending']
+                sorted_matches = sorted(pending_matches, key=lambda x: x.get('id', 0))[:10]
                 
                 for match in sorted_matches:
                     # Get robot data for both competitors
@@ -1475,7 +1611,8 @@ class ControlWindow(QWidget):
                         'match_number': match.get('id', 0),
                         'red_bot': red_bot_data,
                         'blue_bot': blue_bot_data,
-                        'weight_class': weight_class
+                        'weight_class': weight_class,
+                        'status': match.get('status', 'pending')  # Include status for debugging
                     })
             
             # Get tournament data and update the scene
@@ -1484,9 +1621,9 @@ class ControlWindow(QWidget):
                 "matches": queue_matches
             }
             
-            # Update match queue directly
+            # Update match queue directly with error handling
             self.overlay_window.update_match_queue(tournament_data)
-            print("Match queue auto-refreshed")
+            print(f"Match queue auto-refreshed with {len(queue_matches)} pending matches")
             
         except Exception as e:
             print(f"Error refreshing match queue data: {e}")
@@ -1578,7 +1715,218 @@ class ControlWindow(QWidget):
         if not self.overlay_window.isVisible():
             self.overlay_window.show()
 
+    def resizeEvent(self, event):
+        """Handle window resize and scale UI elements proportionally while maintaining aspect ratio"""
+        super().resizeEvent(event)
+        
+        # Don't process resize events until UI is fully initialized
+        if not self.ui_initialized:
+            return
+        
+        # Calculate scale based on width (maintaining aspect ratio)
+        new_width = event.size().width()
+        new_height = int(new_width * (self.base_height / self.base_width))
+        
+        # If calculated height is different from actual, adjust based on height instead
+        if abs(new_height - event.size().height()) > 5:
+            new_height = event.size().height()
+            new_width = int(new_height * (self.base_width / self.base_height))
+            # Resize window to maintain aspect ratio
+            self.resize(new_width, new_height)
+        
+        # Calculate scale factor
+        self.current_scale = new_width / self.base_width
+        
+        # Update all font sizes
+        self.update_ui_scale()
+    
+    def update_ui_scale(self):
+        """Update all UI elements to match current scale"""
+        # Don't update if UI not initialized
+        if not self.ui_initialized:
+            return
+            
+        # Get base font size
+        base_font_size = QApplication.font().pointSize()
+        
+        # Update section labels (2x base)
+        section_font = QFont()
+        section_font.setPointSize(int(base_font_size * 2 * self.current_scale))
+        section_font.setBold(True)
+        
+        for widget in self.findChildren(QLabel):
+            text = widget.text()
+            if text in ["Scenes", "Competitors", "Timer Controls"]:
+                widget.setFont(section_font)
+        
+        # Update scene buttons (1.8x base, reduced height)
+        scene_button_font = QFont()
+        scene_button_font.setPointSize(int(base_font_size * 1.8 * self.current_scale))
+        button_height = int(40 * self.current_scale)  # Reduced from 60 to 40
+        
+        # Check if scene buttons exist before updating
+        if hasattr(self, 'match_scene_button'):
+            scene_buttons = [
+                self.match_scene_button, self.fight_cards_button, self.judges_button,
+                self.rsl_button, self.winner_red_button, self.winner_blue_button,
+                self.match_queue_button
+            ]
+            
+            for button in scene_buttons:
+                button.setFont(scene_button_font)
+                button.setMinimumHeight(button_height)
+                button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)  # Tight to text
+                button.adjustSize()  # Adjust to fit text tightly
+        
+        # Update competitor labels (1.3x base)
+        competitor_label_font = QFont()
+        competitor_label_font.setPointSize(int(base_font_size * 1.3 * self.current_scale))
+        
+        if hasattr(self, 'left_competitor_label'):
+            self.left_competitor_label.setFont(competitor_label_font)
+        if hasattr(self, 'right_competitor_label'):
+            self.right_competitor_label.setFont(competitor_label_font)
+        
+        # Update dropdowns (1.4x base) with scaled height - reduced from  2x
+        dropdown_font = QFont()
+        dropdown_font.setPointSize(int(base_font_size * 1.4 * self.current_scale))  # Reduced from 2.0 to 1.4
+        dropdown_height = int(50 * self.current_scale)  # Reduced from 60 to 50
+        
+        if hasattr(self, 'left_competitor_dropdown'):
+            self.left_competitor_dropdown.setFont(dropdown_font)
+            self.left_competitor_dropdown.setMinimumHeight(dropdown_height)
+            self.left_competitor_dropdown.lineEdit().setFont(dropdown_font)
+            self.left_competitor_dropdown.completer().popup().setFont(dropdown_font)
+        
+        if hasattr(self, 'right_competitor_dropdown'):
+            self.right_competitor_dropdown.setFont(dropdown_font)
+            self.right_competitor_dropdown.setMinimumHeight(dropdown_height)
+            self.right_competitor_dropdown.lineEdit().setFont(dropdown_font)
+            self.right_competitor_dropdown.completer().popup().setFont(dropdown_font)
+        
+        if hasattr(self, 'auto_match_dropdown'):
+            self.auto_match_dropdown.setFont(dropdown_font)
+            self.auto_match_dropdown.setMinimumHeight(dropdown_height)
+        
+        if hasattr(self, 'refresh_matches_button'):
+            refresh_button_font = QFont()
+            refresh_button_font.setPointSize(int(base_font_size * 1.2 * self.current_scale))
+            self.refresh_matches_button.setFont(refresh_button_font)
+            self.refresh_matches_button.setMinimumHeight(int(35 * self.current_scale))
+        
+        # Update mode radio buttons (1.3x base)
+        mode_font = QFont()
+        mode_font.setPointSize(int(base_font_size * 1.3 * self.current_scale))
+        
+        if hasattr(self, 'manual_radio'):
+            self.manual_radio.setFont(mode_font)
+        if hasattr(self, 'auto_radio'):
+            self.auto_radio.setFont(mode_font)
+        
+        # Update name/update button (1.5x base, button height)
+        update_button_font = QFont()
+        update_button_font.setPointSize(int(base_font_size * 1.5 * self.current_scale))
+        
+        if hasattr(self, 'name_button'):
+            self.name_button.setFont(update_button_font)
+            self.name_button.setMinimumHeight(button_height)
+            self.name_button.adjustSize()  # Adjust to fit text tightly
+        
+        # Update timer control buttons - reduced by 20%
+        timer_button_size = int(48 * self.current_scale)  # Changed from 60 to 48
+        timer_icon_size = int(22 * self.current_scale)  # Changed from 28 to 22
+        
+        timer_button_style = f"""
+        QPushButton {{
+            font-size: {timer_icon_size}px;
+            color: black;
+            background-color: #f0f0f0;
+            border: 2px solid #888;
+            border-radius: 5px;
+        }}
+        QPushButton:hover {{
+            background-color: #e0e0e0;
+            border-color: #666;
+        }}
+        QPushButton:pressed {{
+            background-color: #d0d0d0;
+            border-color: #444;
+        }}
+        """
+        
+        if hasattr(self, 'start_timer_button'):
+            self.start_timer_button.setFixedSize(timer_button_size, timer_button_size)
+            self.start_timer_button.setStyleSheet(timer_button_style)
+        
+        if hasattr(self, 'pause_timer_button'):
+            self.pause_timer_button.setFixedSize(timer_button_size, timer_button_size)
+            self.pause_timer_button.setStyleSheet(timer_button_style)
+        
+        if hasattr(self, 'reset_timer_button'):
+            self.reset_timer_button.setFixedSize(timer_button_size, timer_button_size)
+            self.reset_timer_button.setStyleSheet(timer_button_style)
+        
+        # Edit timer button
+        edit_timer_width = int(64 * self.current_scale)  # Changed from 80 to 64
+        edit_timer_font_size = int(11 * self.current_scale)  # Changed from 14 to 11
+        
+        edit_timer_style = f"""
+        QPushButton {{
+            font-size: {edit_timer_font_size}px;
+            color: black;
+            background-color: #f0f0f0;
+            border: 2px solid #888;
+            border-radius: 5px;
+        }}
+        QPushButton:hover {{
+            background-color: #e0e0e0;
+            border-color: #666;
+        }}
+        QPushButton:pressed {{
+            background-color: #d0d0d0;
+            border-color: #444;
+        }}
+        """
+        
+        if hasattr(self, 'edit_timer_button'):
+            self.edit_timer_button.setFixedSize(edit_timer_width, timer_button_size)
+            self.edit_timer_button.setStyleSheet(edit_timer_style)
+        
+        # Update overlay control buttons (1.5x base, button height)
+        overlay_button_font = QFont()
+        overlay_button_font.setPointSize(int(base_font_size * 1.5 * self.current_scale))
+        
+        if hasattr(self, 'reopen_button'):
+            self.reopen_button.setFont(overlay_button_font)
+            self.reopen_button.setMinimumHeight(button_height)
+            self.reopen_button.adjustSize()  # Adjust to fit text tightly
+        
+        if hasattr(self, 'fullscreen_button'):
+            self.fullscreen_button.setFont(overlay_button_font)
+            self.fullscreen_button.setMinimumHeight(button_height)
+            self.fullscreen_button.adjustSize()  # Adjust to fit text tightly
+
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    control = ControlWindow()
-    sys.exit(app.exec())
+    try:
+        app = QApplication(sys.argv)
+        
+        # Check if overlay.html exists using resource path
+        html_path = get_resource_path("overlay.html")
+        if not os.path.exists(html_path):
+            print("ERROR: overlay.html file not found!")
+            print(f"Looking for: {html_path}")
+            print("Please make sure overlay.html is in the same directory as overlay.py")
+            sys.exit(1)
+        
+        control = ControlWindow()
+        sys.exit(app.exec())
+        
+    except ImportError as e:
+        print(f"Import Error: {e}")
+        print("Please make sure PySide6 is installed: pip install PySide6")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error launching application: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)

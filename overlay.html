@@ -230,14 +230,14 @@
     /* Fight Card Scene Styles */
     .fight-cards-container {
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
       height: 100vh;
-      width: 95%; /* Increased to 95% to accommodate responsive cards */
+      width: 100%;
       margin: 0 auto;
-      padding: 2vh;
+      padding: 2vh 1vw;
       box-sizing: border-box;
-      gap: 6vw; /* Responsive gap to fit cards */
+      gap: 2vw;
       max-height: 100vh;
       overflow: hidden;
     }
@@ -245,16 +245,17 @@
     .robot-card {
       background-color: black;
       border-radius: 15px;
-      padding: 3vh;
-      width: 64vw; /* Responsive width */
-      height: 80vh;
+      padding: 2.5vh 1.5vw;
+      width: 35vw;
+      height: 85vh;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start; /* Start from top instead of space-between */
+      justify-content: flex-start;
       color: white;
       text-align: center;
       border: 3px solid white;
-      flex-shrink: 0; /* Prevent shrinking */
+      flex-shrink: 0;
+      box-sizing: border-box;
     }
 
     .robot-card.left {
@@ -268,44 +269,50 @@
     }
 
     .robot-name {
-      font-size: clamp(3vh, 5.2vw, 7vh);
+      font-size: clamp(4vh, 6.5vw, 9vh);
       font-weight: bold;
-      margin-bottom: 1.2vh;
+      margin-bottom: 0.8vh;
       text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black, -1px 0 0 black, 1px 0 0 black, 0 -1px 0 black, 0 1px 0 black;
+      line-height: 1.1;
     }
 
     .team-name {
-      font-size: clamp(2vh, 2.8vw, 4vh);
-      margin-bottom: 2vh;
+      font-size: clamp(2vh, 2.8vw, 4vh); /* Reduced from clamp(2.5vh, 3.5vw, 5vh) */
+      margin-bottom: 1.5vh;
       text-shadow: -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black, 1px 1px 0 black;
+      line-height: 1.2;
     }
 
     /* Fixed sections within robot card */
     .robot-header {
-      height: 14vh; /* Responsive height for name and team section */
+      height: 14vh;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;
-      margin-bottom: 2vh;
+      align-items: center;
+      margin-bottom: 1.5vh;
     }
 
     .robot-image-section {
-      height: 58vh; /* Responsive height to accommodate images */
+      height: 56vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      margin-bottom: 1.5vh;
     }
 
     .robot-stats {
-      height: 12vh; /* Responsive height for stats section */
+      height: 10vh;
       display: flex;
-      justify-content: space-between;
+      justify-content: space-around;
       align-items: flex-end;
       margin-top: auto;
+      gap: 2vw;
     }
 
     .stat {
       text-align: center;
+      flex: 1;
     }
 
     .stat-label {
@@ -321,13 +328,17 @@
     }
 
     .robot-image {
-      width: 56vh; /* Large responsive square */
-      height: 56vh; /* Large responsive square */
+      width: 100%;
+      max-width: 32vw;
+      height: 100%;
+      max-height: 54vh;
+      aspect-ratio: 1 / 1;
       border-radius: 15px;
       background-color: white;
       border: 3px solid black;
       overflow: hidden;
       position: relative;
+      margin: 0 auto;
     }
 
     .robot-image img {
@@ -358,10 +369,12 @@
     }
 
     .vs-text {
-      font-size: clamp(6vh, 9.6vw, 12vh);
+      font-size: clamp(8vh, 12vw, 15vh);
       font-weight: bold;
       color: white;
       text-shadow: -2px -2px 0 black, 2px -2px 0 black, -2px 2px 0 black, 2px 2px 0 black, -1px 0 0 black, 1px 0 0 black, 0 -1px 0 black, 0 1px 0 black;
+      margin: 0 0.5vw;
+      flex-shrink: 0;
     }
 
     /* Winner Scene Styles */
@@ -384,6 +397,7 @@
       width: 100%;
       text-align: center;
       margin: 0;
+      z-index: 100;
     }
 
     .winner-title.red {
@@ -394,113 +408,38 @@
       color: #2D5FCC;
     }
 
-    /* Fight Cards Scene - 1.5x text size except robot name which is responsive */
-    #fight-cards-scene .robot-name {
-      font-size: clamp(6vh, 10.2vw, 13vh);
-      white-space: nowrap;
-      line-height: 1.1;
-      margin-top: -0.5vh; /* Move bot names up */
+    /* Winner card uses fight card container layout */
+    #winner-red-scene .fight-cards-container,
+    #winner-blue-scene .fight-cards-container {
+      margin-top: 15vh; /* Space for winner title */
+      justify-content: center; /* Center single card */
     }
 
-    #fight-cards-scene .team-name {
-      font-size: clamp(3vh, 4.2vw, 6vh); /* 28px * 1.5 responsive */
-      margin-top: -1.5vh; /* Move team names up */
-    }
-
-    #fight-cards-scene .stat-label {
-      font-size: clamp(2vh, 3.3vw, 4.5vh); /* 22px * 1.5 responsive */
-    }
-
-    #fight-cards-scene .stat-value {
-      font-size: clamp(4vh, 6vw, 8vh); /* 40px * 1.5 responsive */
-    }
-
-    /* Judges Scene - match fight cards text sizes */
-    #judges-scene .robot-name {
-      font-size: clamp(6vh, 10.2vw, 13vh); /* Responsive */
-      margin-top: -0.5vh; /* Move bot names up */
-    }
-
-    #judges-scene .team-name {
-      font-size: clamp(3vh, 4.2vw, 6vh); /* 28px * 1.5 responsive */
-      margin-top: -1.5vh; /* Move team names up */
-    }
-
-    #judges-scene .stat-label {
-      font-size: clamp(2vh, 3.3vw, 4.5vh); /* 22px * 1.5 responsive */
-    }
-
-    #judges-scene .stat-value {
-      font-size: clamp(4vh, 6vw, 8vh); /* 40px * 1.5 responsive */
-    }
-
-    /* Winner Scenes - adjusted text sizes */
-    #winner-red-scene .winner-title,
-    #winner-blue-scene .winner-title {
-      font-size: clamp(8vh, 14.4vw, 18vh); /* 96px * 1.5 responsive */
-    }
-
-    #winner-red-scene .robot-name,
-    #winner-blue-scene .robot-name {
-      font-size: clamp(7vh, 12vw, 15vh); /* Increased responsive */
-      margin-top: -2vh; /* Move down responsive */
-    }
-
-    #winner-red-scene .team-name,
-    #winner-blue-scene .team-name {
-      font-size: clamp(4vh, 5.6vw, 8vh); /* 28px * 2 responsive */
-      margin-top: -2vh; /* Move down responsive */
-    }
-
-    #winner-red-scene .stat-label,
-    #winner-blue-scene .stat-label {
-      font-size: clamp(3vh, 4.4vw, 6vh); /* 22px * 2 responsive */
-    }
-
-    #winner-red-scene .stat-value,
-    #winner-blue-scene .stat-value {
-      font-size: clamp(5vh, 8vw, 10vh); /* 40px * 2 responsive */
-    }
-
-    /* Winner cards with 4:3 ratio and precise positioning */
     #winner-red-scene .robot-card,
     #winner-blue-scene .robot-card {
       background-color: gold !important;
       border: 3px solid black !important;
-      position: absolute;
-      top: 250px; /* Moved down 50px: was 200px, now 250px */
-      height: calc(100vh - 400px); /* 50px shorter: was 350px, now 400px total offset */
-      width: calc((100vh - 400px) * 3/4); /* 4:3 ratio: width = height * 3/4 */
-      left: 50%;
-      transform: translateX(-50%); /* Center horizontally */
+      color: black !important;
+      width: 35vw; /* Same as fight cards */
+      height: 80vh; /* Increased from 75vh to contain image */
+    }
+
+    /* Winner card robot header - adjusted spacing */
+    #winner-red-scene .robot-header,
+    #winner-blue-scene .robot-header {
+      height: 20vh; /* Increased from 18vh for better text spacing */
+      margin-bottom: 2vh;
       display: flex;
       flex-direction: column;
-      padding: 3vh;
-      color: black !important;
-      overflow: hidden;
-      justify-content: flex-start;
-      gap: 2vh;
+      justify-content: center; /* Center the text vertically */
+      align-items: center;
     }
 
-    /* Winner card text at top */
-    #winner-red-scene .robot-card > div:first-child,
-    #winner-blue-scene .robot-card > div:first-child {
-      margin-bottom: 2vh;
-    }
-
-    /* Winner robot images - square with 30px buffer */
-    #winner-red-scene .robot-image,
-    #winner-blue-scene .robot-image {
-      width: calc(100% - 60px); /* 30px buffer on each side */
-      height: 0;
-      padding-bottom: calc(100% - 60px); /* Square aspect ratio */
-      margin: -20px 30px 30px 30px; /* Move down 30px: from -50px to -20px */
-      flex-shrink: 0;
-      position: relative;
-      border-radius: 15px;
-      border: 3px solid black;
-      background-color: white;
-      overflow: hidden;
+    /* Winner card image section - adjusted to fit properly */
+    #winner-red-scene .robot-image-section,
+    #winner-blue-scene .robot-image-section {
+      height: 58vh; /* Adjusted to fit within the taller card */
+      margin-bottom: 0; /* Remove bottom margin */
     }
 
     /* Winner card text should be black on gold background */
@@ -510,6 +449,20 @@
     #winner-blue-scene .team-name {
       color: black !important;
       text-shadow: none !important;
+    }
+
+    /* Winner robot names - responsive size with scaling */
+    #winner-red-scene .robot-name,
+    #winner-blue-scene .robot-name {
+      font-size: clamp(5vh, 8vw, 12vh); /* Reduced max size for better scaling */
+      margin-bottom: 1vh; /* Add spacing between name and team */
+    }
+
+    /* Winner team names - responsive size */
+    #winner-red-scene .team-name,
+    #winner-blue-scene .team-name {
+      font-size: clamp(2.5vh, 3.5vw, 5vh); /* Reduced from clamp(3vh, 4.5vw, 6vh) */
+      margin-bottom: 0; /* Remove bottom margin since image section follows */
     }
 
     /* Match Queue Scene Styles */
@@ -711,7 +664,7 @@
     /* Fight Cards Tournament Info Styles */
     .fight-cards-tournament-info {
       position: absolute;
-      top: 30px;
+      top: 2vh;
       left: 50%;
       transform: translateX(-50%);
       text-align: center;
@@ -736,7 +689,7 @@
     /* Fight Cards RSL Logo */
     .fight-cards-rsl-logo {
       position: absolute;
-      bottom: 5vh;
+      bottom: 3vh;
       left: 50%;
       transform: translateX(-50%);
       width: 18vw;
@@ -900,6 +853,12 @@
 
   <!-- Judges Scene -->
   <div id="judges-scene" class="scene">
+    <!-- Tournament Info at top -->
+    <div class="fight-cards-tournament-info">
+      <div class="fight-cards-tournament-name" id="judges-tournament-name">Tournament Name</div>
+      <div class="fight-cards-weight-class" id="judges-weight-class">Weight Class</div>
+    </div>
+    
     <div class="fight-cards-container">
       <div class="robot-card left">
         <div class="robot-header">
@@ -970,12 +929,16 @@
   <div id="winner-red-scene" class="scene">
     <div class="winner-container">
       <div class="winner-title red">WINNER</div>
-      <div class="robot-card winner-card">
-        <div>
-          <div class="robot-name" id="winner-red-robot-name">Robot Name</div>
-          <div class="team-name" id="winner-red-team-name">Team Name</div>
+      <div class="fight-cards-container">
+        <div class="robot-card winner-card">
+          <div class="robot-header">
+            <div class="robot-name" id="winner-red-robot-name">Robot Name</div>
+            <div class="team-name" id="winner-red-team-name">Team Name</div>
+          </div>
+          <div class="robot-image-section">
+            <div class="robot-image placeholder" id="winner-red-robot-image">No Image Available</div>
+          </div>
         </div>
-        <div class="robot-image placeholder" id="winner-red-robot-image">No Image Available</div>
       </div>
     </div>
   </div>
@@ -984,12 +947,16 @@
   <div id="winner-blue-scene" class="scene">
     <div class="winner-container">
       <div class="winner-title blue">WINNER</div>
-      <div class="robot-card winner-card">
-        <div>
-          <div class="robot-name" id="winner-blue-robot-name">Robot Name</div>
-          <div class="team-name" id="winner-blue-team-name">Team Name</div>
+      <div class="fight-cards-container">
+        <div class="robot-card winner-card">
+          <div class="robot-header">
+            <div class="robot-name" id="winner-blue-robot-name">Robot Name</div>
+            <div class="team-name" id="winner-blue-team-name">Team Name</div>
+          </div>
+          <div class="robot-image-section">
+            <div class="robot-image placeholder" id="winner-blue-robot-image">No Image Available</div>
+          </div>
         </div>
-        <div class="robot-image placeholder" id="winner-blue-robot-image">No Image Available</div>
       </div>
     </div>
   </div>
@@ -1350,7 +1317,7 @@
       console.log('Fight cards updated:', leftRobot.bot_name, 'vs', rightRobot.bot_name);
     };
 
-    window.updateJudges = function(leftRobot, rightRobot) {
+    window.updateJudges = function(leftRobot, rightRobot, tournamentData) {
       // Check if all required elements exist
       const requiredElements = [
         'judges-left-robot-name', 'judges-left-team-name', 'judges-left-elo', 'judges-left-mrca',
@@ -1361,8 +1328,21 @@
       const missing = requiredElements.find(id => !document.getElementById(id));
       if (missing) {
         console.warn('Judges scene elements not ready, missing:', missing);
-        setTimeout(() => window.updateJudges(leftRobot, rightRobot), 100);
+        setTimeout(() => window.updateJudges(leftRobot, rightRobot, tournamentData), 100);
         return;
+      }
+
+      // Update tournament info if provided
+      if (tournamentData) {
+        const tournamentNameEl = document.getElementById('judges-tournament-name');
+        const weightClassEl = document.getElementById('judges-weight-class');
+        
+        if (tournamentNameEl) {
+          tournamentNameEl.innerText = tournamentData.tournament_name || 'Tournament Name';
+        }
+        if (weightClassEl) {
+          weightClassEl.innerText = tournamentData.weight_class || 'Weight Class';
+        }
       }
       
       // Update left robot card
@@ -1408,7 +1388,82 @@
       console.log('RSL scene updated:', tournamentData.name);
     };
 
-    function scaleTextToFit(elementId, maxFontSize = 102, minFontSize = 40) {
+    // Match Queue Scene Functions
+    window.updateMatchQueue = function(tournament_data) {
+      console.log('updateMatchQueue called with:', tournament_data);
+      
+      // Validate input data
+      if (!tournament_data || !tournament_data.matches) {
+        console.error('Invalid tournament data provided to updateMatchQueue');
+        return;
+      }
+      
+      // Update tournament name
+      const tournamentNameEl = document.getElementById('queue-tournament-name');
+      if (tournamentNameEl) {
+        tournamentNameEl.innerText = tournament_data.tournament_name || 'Tournament Name';
+      }
+      
+      // Get all match elements (0-9)
+      for (let i = 0; i < 10; i++) {
+        const matchEl = document.getElementById(`queue-match-${i}`);
+        if (matchEl) {
+          if (i < tournament_data.matches.length) {
+            // Show match with data
+            const match = tournament_data.matches[i];
+            matchEl.style.display = 'flex';
+            
+            // Update red bot
+            const redImageEl = document.getElementById(`queue-bot-${i}-red`);
+            const redNameEl = document.getElementById(`queue-bot-name-${i}-red`);
+            if (match.red_bot && match.red_bot.bot_name) {
+              updateRobotImage(`queue-bot-${i}-red`, match.red_bot.image_url);
+              if (redNameEl) {
+                redNameEl.innerText = match.red_bot.bot_name;
+                // Scale text to fit if needed
+                setTimeout(() => scaleQueueTextToFit(`queue-bot-name-${i}-red`), 10);
+              }
+            } else {
+              if (redImageEl) showImagePlaceholder(redImageEl);
+              if (redNameEl) {
+                redNameEl.innerText = 'Bot Name';
+              }
+            }
+            
+            // Update blue bot
+            const blueImageEl = document.getElementById(`queue-bot-${i}-blue`);
+            const blueNameEl = document.getElementById(`queue-bot-name-${i}-blue`);
+            if (match.blue_bot && match.blue_bot.bot_name) {
+              updateRobotImage(`queue-bot-${i}-blue`, match.blue_bot.image_url);
+              if (blueNameEl) {
+                blueNameEl.innerText = match.blue_bot.bot_name;
+                // Scale text to fit if needed
+                setTimeout(() => scaleQueueTextToFit(`queue-bot-name-${i}-blue`), 10);
+              }
+            } else {
+              if (blueImageEl) showImagePlaceholder(blueImageEl);
+              if (blueNameEl) {
+                blueNameEl.innerText = 'Bot Name';
+              }
+            }
+            
+            // Update weight class
+            const weightClassEl = document.getElementById(`queue-weight-class-${i}`);
+            if (weightClassEl) {
+              weightClassEl.innerText = match.weight_class || '3lb';
+            }
+            
+          } else {
+            // Hide unused matches
+            matchEl.style.display = 'none';
+          }
+        }
+      }
+      
+      console.log('Match queue updated with', tournament_data.matches.length, 'matches');
+    };
+
+    function scaleTextToFit(elementId, maxFontSize = 140, minFontSize = 50) {
       const element = document.getElementById(elementId);
       if (!element) return;
       
@@ -1417,11 +1472,13 @@
       element.style.fontSize = fontSize + 'px';
       
       // Get the available width more accurately
-      // Use the robot card container and account for padding (30px on each side)
+      // Use the robot card container and account for padding
       const robotCard = element.closest('.robot-card');
       if (!robotCard) return;
       
-      const availableWidth = robotCard.clientWidth - 60; // 30px padding on each side
+      // Account for card padding (1.5vw on each side = 3vw total)
+      const cardPadding = 3 * window.innerWidth / 100;
+      const availableWidth = robotCard.clientWidth - cardPadding - 20; // Extra 20px buffer
       
       // Create a temporary span to measure text width more accurately
       const testSpan = document.createElement('span');
@@ -1570,6 +1627,11 @@
       // Update winner red robot image
       updateRobotImage('winner-red-robot-image', robotData.image_url);
       
+      // Scale robot name to fit in one line
+      setTimeout(() => {
+        scaleWinnerTextToFit('winner-red-robot-name');
+      }, 50);
+      
       console.log('Winner red updated:', robotData.bot_name);
     };
 
@@ -1592,111 +1654,54 @@
       // Update winner blue robot image
       updateRobotImage('winner-blue-robot-image', robotData.image_url);
       
+      // Scale robot name to fit in one line
+      setTimeout(() => {
+        scaleWinnerTextToFit('winner-blue-robot-name');
+      }, 50);
+      
       console.log('Winner blue updated:', robotData.bot_name);
     };
 
-    window.updateMatchQueue = function(tournamentData) {
-      const requiredElements = [
-        'queue-tournament-name'
-      ];
+    function scaleWinnerTextToFit(elementId, maxFontSize = 120, minFontSize = 40) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
       
-      const missing = requiredElements.find(id => !document.getElementById(id));
-      if (missing) {
-        console.warn('Match queue elements not ready, missing:', missing);
-        setTimeout(() => window.updateMatchQueue(tournamentData), 100);
-        return;
+      // Start with max font size
+      let fontSize = maxFontSize;
+      element.style.fontSize = fontSize + 'px';
+      
+      // Get the available width - use the robot card container
+      const robotCard = element.closest('.robot-card');
+      if (!robotCard) return;
+      
+      // Account for card padding (1.5vw on each side = 3vw total) plus extra buffer
+      const cardPadding = 3 * window.innerWidth / 100;
+      const availableWidth = robotCard.clientWidth - cardPadding - 40; // Extra 40px buffer for winner cards
+      
+      // Create a temporary span to measure text width
+      const testSpan = document.createElement('span');
+      testSpan.style.visibility = 'hidden';
+      testSpan.style.position = 'absolute';
+      testSpan.style.whiteSpace = 'nowrap';
+      testSpan.style.fontSize = fontSize + 'px';
+      testSpan.style.fontWeight = 'bold';
+      testSpan.style.fontFamily = getComputedStyle(element).fontFamily;
+      testSpan.textContent = element.textContent;
+      document.body.appendChild(testSpan);
+      
+      // Reduce font size until text fits
+      while (testSpan.offsetWidth > availableWidth && fontSize > minFontSize) {
+        fontSize -= 2;
+        testSpan.style.fontSize = fontSize + 'px';
       }
       
-      // Update tournament name
-      document.getElementById('queue-tournament-name').innerText = tournamentData.tournament_name || 'Tournament Name';
+      // Apply the calculated font size to the actual element
+      element.style.fontSize = fontSize + 'px';
       
-      // Update match queue with match data if provided
-      if (tournamentData.matches && Array.isArray(tournamentData.matches)) {
-        updateQueueMatches(tournamentData.matches);
-      }
+      console.log(`Winner ${elementId}: "${element.textContent}" - Available: ${availableWidth}px, Final: ${testSpan.offsetWidth}px, Font: ${fontSize}px`);
       
-      console.log('Match queue updated with tournament:', tournamentData.tournament_name);
-    };
-
-    function updateQueueMatches(matches) {
-      // Show up to 10 matches (5 per column)
-      const maxMatches = 10;
-      
-      for (let i = 0; i < maxMatches; i++) {
-        const matchElement = document.getElementById(`queue-match-${i}`);
-        if (!matchElement) continue;
-        
-        if (i < matches.length) {
-          const match = matches[i];
-          
-          // Show the match
-          matchElement.style.display = 'flex';
-          
-          // Update red bot (left side) - check for name and image changes
-          const redNameElement = document.getElementById(`queue-bot-name-${i}-red`);
-          const redImageElement = document.getElementById(`queue-bot-${i}-red`);
-          
-          if (redNameElement && match.red_bot) {
-            const newRedName = match.red_bot.bot_name || 'Bot Name';
-            if (redNameElement.textContent !== newRedName) {
-              console.log(`Updating red bot name ${i}: ${redNameElement.textContent} → ${newRedName}`);
-              redNameElement.textContent = newRedName;
-            }
-          }
-          if (redImageElement && match.red_bot) {
-            const newRedImageUrl = match.red_bot.image_url;
-            const currentRedImageUrl = redImageElement.getAttribute('data-current-url');
-            if (currentRedImageUrl !== newRedImageUrl) {
-              console.log(`Updating red bot image ${i}: ${currentRedImageUrl} → ${newRedImageUrl}`);
-              redImageElement.setAttribute('data-current-url', newRedImageUrl || '');
-              updateRobotImage(`queue-bot-${i}-red`, newRedImageUrl);
-            }
-          }
-          
-          // Update blue bot (right side) - check for name and image changes
-          const blueNameElement = document.getElementById(`queue-bot-name-${i}-blue`);
-          const blueImageElement = document.getElementById(`queue-bot-${i}-blue`);
-          
-          if (blueNameElement && match.blue_bot) {
-            const newBlueName = match.blue_bot.bot_name || 'Bot Name';
-            if (blueNameElement.textContent !== newBlueName) {
-              console.log(`Updating blue bot name ${i}: ${blueNameElement.textContent} → ${newBlueName}`);
-              blueNameElement.textContent = newBlueName;
-            }
-          }
-          if (blueImageElement && match.blue_bot) {
-            const newBlueImageUrl = match.blue_bot.image_url;
-            const currentBlueImageUrl = blueImageElement.getAttribute('data-current-url');
-            if (currentBlueImageUrl !== newBlueImageUrl) {
-              console.log(`Updating blue bot image ${i}: ${currentBlueImageUrl} → ${newBlueImageUrl}`);
-              blueImageElement.setAttribute('data-current-url', newBlueImageUrl || '');
-              updateRobotImage(`queue-bot-${i}-blue`, newBlueImageUrl);
-            }
-          }
-          
-          // Update weight class - check for changes
-          const weightClassElement = document.getElementById(`queue-weight-class-${i}`);
-          if (weightClassElement) {
-            const newWeightClass = match.weight_class || '3lb';
-            if (weightClassElement.textContent !== newWeightClass) {
-              console.log(`Updating weight class ${i}: ${weightClassElement.textContent} → ${newWeightClass}`);
-              weightClassElement.textContent = newWeightClass;
-            }
-          }
-          
-        } else {
-          // Hide unused match slots
-          matchElement.style.display = 'none';
-        }
-      }
-      
-      // Scale bot names to fit
-      setTimeout(() => {
-        for (let i = 0; i < maxMatches; i++) {
-          scaleQueueTextToFit(`queue-bot-name-${i}-red`);
-          scaleQueueTextToFit(`queue-bot-name-${i}-blue`);
-        }
-      }, 100);
+      // Clean up the test element
+      document.body.removeChild(testSpan);
     }
   </script>
 </body>
